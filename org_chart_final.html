@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One Development - Org Chart</title>
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+        
+        .container { 
+            max-width: 1600px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 20px; 
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header { 
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); 
+            color: white; 
+            padding: 30px 20px;
+            text-align: center; 
+        }
+        
+        .header h1 { 
+            font-size: clamp(1.5rem, 5vw, 2.5rem);
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p { 
+            font-size: clamp(0.9rem, 3vw, 1.2rem);
+            opacity: 0.9;
+        }
+        
+        .date { 
+            background: rgba(255,255,255,0.1); 
+            display: inline-block; 
+            padding: 8px 16px; 
+            border-radius: 20px; 
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .banner { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            padding: 20px;
+            color: white; 
+            display: flex; 
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .banner-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .banner-title { 
+            font-size: clamp(1.2rem, 4vw, 1.5rem);
+            font-weight: 700;
+        }
+        
+        .banner-amount { 
+            font-size: clamp(2rem, 6vw, 3rem);
+            font-weight: 800;
+        }
+        
+        .banner-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: stretch;
+        }
+        
+        .view-toggle { 
+            display: flex; 
+            gap: 0; 
+            background: rgba(255,255,255,0.2); 
+            border-radius: 8px; 
+            padding: 3px; 
+        }
+        
+        .view-btn { 
+            flex: 1;
+            padding: 10px 20px; 
+            background: transparent; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        
+        .view-btn.active { 
+            background: white; 
+            color: #667eea; 
+        }
+        
+        .export-btn { 
+            padding: 12px 24px; 
+            background: white; 
+            color: #667eea; 
+            border: none;
+            border-radius: 10px; 
+            cursor: pointer; 
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .export-btn:hover { 
+            background: rgba(255,255,255,0.9);
+            transform: translateY(-2px);
+        }
+        
+        .controls { 
+            padding: 20px;
+            background: #f8f9fa; 
+            display: flex; 
+            gap: 15px;
+            flex-wrap: wrap; 
+            align-items: center; 
+        }
+        
+        .search-box { 
+            flex: 1; 
+            min-width: 200px; 
+        }
+        
+        .search-box input { 
+            width: 100%; 
+            padding: 12px 15px;
+            border: 2px solid #dee2e6; 
+            border-radius: 10px; 
+            font-size: 1rem;
+        }
+        
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn { 
+            padding: 12px 20px;
+            background: #667eea; 
+            color: white; 
+            border: none; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            font-weight: 600;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+        
+        .btn:hover { 
+            background: #5568d3; 
+        }
+        
+        .btn.secondary { 
+            background: #6c757d; 
+        }
+        
+        .btn.danger {
+            background: #dc3545;
+        }
+        
+        .info-text {
+            color: #6c757d;
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 12px 0;
+        }
+        
+        .org-chart { 
+            padding: 20px;
+            overflow-x: auto; 
+        }
+        
+        .level { 
+            display: flex; 
+            justify-content: center; 
+            margin-bottom: 30px;
+            flex-wrap: wrap; 
+            gap: 20px;
+        }
+        
+        .node { 
+            background: white; 
+            border: 3px solid #e9ecef; 
+            border-radius: 15px; 
+            padding: 20px; 
+            width: 100%;
+            max-width: 320px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            transition: all 0.3s;
+        }
+        
+        .node:hover { 
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(102,126,234,0.2);
+        }
+        
+        .node.cso { 
+            border-color: #17a2b8; 
+            background: linear-gradient(135deg, #e0f7fa 0%, #fff 100%); 
+        }
+        
+        .node.director { 
+            border-color: #667eea; 
+            background: linear-gradient(135deg, #ede7f6 0%, #fff 100%); 
+        }
+        
+        .node.manager { 
+            border-color: #6c757d; 
+            background: linear-gradient(135deg, #f5f5f5 0%, #fff 100%); 
+        }
+        
+        .node.board { 
+            border-color: #ffc107; 
+            background: linear-gradient(135deg, #fff9e6 0%, #fff 100%); 
+        }
+        
+        .node.executive { 
+            border-color: #28a745; 
+            background: linear-gradient(135deg, #e8f5e9 0%, #fff 100%); 
+        }
+        
+        .node-name { 
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #1e3c72;
+            margin-bottom: 8px;
+            word-wrap: break-word;
+        }
+        
+        .node-title { 
+            font-size: 0.95rem;
+            color: #6c757d;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+        
+        .node-financials { 
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #e9ecef;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .fin-row { 
+            display: flex; 
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            gap: 10px;
+        }
+        
+        .fin-label { 
+            font-size: 0.85rem;
+            color: #6c757d;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        
+        .fin-input { 
+            width: 110px;
+            padding: 6px 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            text-align: right;
+        }
+        
+        .fin-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .cost-item { 
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .cost-name { 
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+        }
+        
+        .cost-name:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .cost-row { 
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        
+        .cost-row .fin-input { 
+            flex: 1;
+            width: auto;
+        }
+        
+        .remove-btn { 
+            width: 28px;
+            height: 28px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .remove-btn:hover { 
+            background: #c82333;
+        }
+        
+        .add-cost { 
+            width: 100%;
+            padding: 8px;
+            margin-top: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        
+        .add-cost:hover { 
+            background: #5568d3;
+        }
+        
+        .save-indicator { 
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            box-shadow: 0 4px 15px rgba(40,167,69,0.3);
+            z-index: 1000;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            body { padding: 5px; }
+            
+            .container { border-radius: 15px; }
+            
+            .header { padding: 20px 15px; }
+            
+            .banner { padding: 15px; }
+            
+            .banner-main {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .banner-controls {
+                width: 100%;
+            }
+            
+            .controls { 
+                padding: 15px;
+                gap: 10px;
+            }
+            
+            .btn {
+                padding: 10px 15px;
+                font-size: 0.85rem;
+            }
+            
+            .org-chart { padding: 15px; }
+            
+            .level { 
+                flex-direction: column;
+                align-items: center;
+                gap: 15px;
+            }
+            
+            .node { 
+                max-width: 100%;
+                padding: 15px;
+            }
+            
+            .save-indicator {
+                bottom: 10px;
+                right: 10px;
+                padding: 10px 16px;
+                font-size: 0.85rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .fin-input { width: 90px; }
+            
+            .fin-label { font-size: 0.8rem; }
+            
+            .search-box input { font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect } = React;
+
+        const orgData = {
+            board: [
+                { id: 'b1', name: "Ahmed Ayyoub", title: "Vice Chairman", type: "board" },
+                { id: 'b2', name: "Ali Al Gebely", title: "Founder & Chairman", type: "board" },
+                { id: 'b3', name: "Hamad Al Mulla", title: "Board Member", type: "board" }
+            ],
+            executive: [
+                { id: 'e1', name: "Rouf Andrea", title: "Group Chief Executive Officer", type: "executive" }
+            ],
+            cso: [
+                { id: 'c1', name: "Amr Kandeel", title: "Chief Strategy Officer", type: "cso" }
+            ],
+            directors: [
+                { id: 'd1', name: "Vacant", title: "Strategy – Investments & Offers", type: "director", vacant: true },
+                { id: 'd2', name: "Ahmed Ali Saad", title: "Manager - Strategy & Research", type: "manager" },
+                { id: 'd3', name: "Tamara Strygun", title: "Department Coordinator", type: "manager" },
+                { id: 'd4', name: "Dhananjay Shembekar", title: "Manager - MIS", type: "manager" },
+                { id: 'd5', name: "Jason D Costa", title: "Director – Strategic Operations", type: "director" },
+                { id: 'd6', name: "On Hold", title: "Digital Transformation", type: "director", hold: true }
+            ],
+            team: [
+                { id: 't1', name: "Hussein Altayb", title: "Market Research Analyst", type: "manager" },
+                { id: 't2', name: "Vacant", title: "Feasibility & Benchmarking", type: "manager", vacant: true },
+                { id: 't3', name: "Vacant", title: "Financial Modeling", type: "manager", vacant: true },
+                { id: 't4', name: "Vacant", title: "Administrator", type: "manager", vacant: true },
+                { id: 't5', name: "Norton Araujo", title: "Executive – Inventory Management", type: "manager" },
+                { id: 't6', name: "Joshua Tong", title: "Manager – Leads Management", type: "manager" },
+                { id: 't7', name: "Vacant", title: "", type: "manager", vacant: true }
+            ]
+        };
+
+        function App() {
+            const [financials, setFinancials] = useState(() => {
+                try {
+                    const saved = localStorage.getItem('orgFinancials');
+                    if (saved) return JSON.parse(saved);
+                } catch (e) {
+                    console.error('Error loading saved data:', e);
+                }
+                
+                const init = {};
+                [...orgData.cso, ...orgData.directors, ...orgData.team].forEach(p => {
+                    if (p.type !== 'board' && p.type !== 'executive') {
+                        init[p.id] = { salary: 0, costs: [] };
+                    }
+                });
+                return init;
+            });
+
+            const [viewMode, setViewMode] = useState('monthly');
+            const [showSaved, setShowSaved] = useState(false);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [showVacant, setShowVacant] = useState(true);
+
+            const today = new Date();
+            const currentDate = `${String(today.getDate()).padStart(2,'0')}-${['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][today.getMonth()]}-${String(today.getFullYear()).slice(-2)}`;
+
+            useEffect(() => {
+                try {
+                    localStorage.setItem('orgFinancials', JSON.stringify(financials));
+                    setShowSaved(true);
+                    const timer = setTimeout(() => setShowSaved(false), 2000);
+                    return () => clearTimeout(timer);
+                } catch (e) {
+                    console.error('Error saving data:', e);
+                }
+            }, [financials]);
+
+            const updateSalary = (id, value) => {
+                setFinancials(prev => ({
+                    ...prev,
+                    [id]: { ...prev[id], salary: parseFloat(value) || 0 }
+                }));
+            };
+
+            const addCost = (id) => {
+                setFinancials(prev => ({
+                    ...prev,
+                    [id]: {
+                        ...prev[id],
+                        costs: [...prev[id].costs, { id: Date.now(), name: '', amount: 0 }]
+                    }
+                }));
+            };
+
+            const updateCost = (personId, costId, field, value) => {
+                setFinancials(prev => ({
+                    ...prev,
+                    [personId]: {
+                        ...prev[personId],
+                        costs: prev[personId].costs.map(c =>
+                            c.id === costId
+                                ? { ...c, [field]: field === 'amount' ? (parseFloat(value) || 0) : value }
+                                : c
+                        )
+                    }
+                }));
+            };
+
+            const removeCost = (personId, costId) => {
+                setFinancials(prev => ({
+                    ...prev,
+                    [personId]: {
+                        ...prev[personId],
+                        costs: prev[personId].costs.filter(c => c.id !== costId)
+                    }
+                }));
+            };
+
+            const resetFinancials = () => {
+                if (confirm('Clear all financial data? This cannot be undone.')) {
+                    const init = {};
+                    [...orgData.cso, ...orgData.directors, ...orgData.team].forEach(p => {
+                        if (p.type !== 'board' && p.type !== 'executive') {
+                            init[p.id] = { salary: 0, costs: [] };
+                        }
+                    });
+                    setFinancials(init);
+                }
+            };
+
+            const totals = useMemo(() => {
+                let salary = 0, cost = 0;
+                Object.values(financials).forEach(f => {
+                    salary += f.salary || 0;
+                    cost += f.costs.reduce((sum, c) => sum + (c.amount || 0), 0);
+                });
+                const mult = viewMode === 'yearly' ? 12 : 1;
+                return { salary: salary * mult, cost: cost * mult, total: (salary + cost) * mult };
+            }, [financials, viewMode]);
+
+            const formatCurrency = (value) => {
+                return new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'AED',
+                    minimumFractionDigits: 0
+                }).format(value);
+            };
+
+            const exportExcel = () => {
+                const wb = XLSX.utils.book_new();
+
+                const summary = [
+                    ['ONE DEVELOPMENT - STRATEGY & DIGITAL TRANSFORMATION'],
+                    ['Department Cost Analysis'],
+                    [`Date: ${currentDate}`],
+                    [],
+                    ['Name', 'Position', 'Monthly Salary', 'Cost Items', 'Total Monthly Costs', 'Total Monthly', 'Total Yearly']
+                ];
+
+                Object.entries(financials).forEach(([id, vals]) => {
+                    const person = [...orgData.cso, ...orgData.directors, ...orgData.team].find(p => p.id === id);
+                    const totalCosts = vals.costs.reduce((sum, c) => sum + (c.amount || 0), 0);
+                    const monthlyTotal = (vals.salary || 0) + totalCosts;
+                    const costItems = vals.costs.length > 0
+                        ? vals.costs.map(c => `${c.name}: ${c.amount}`).join('; ')
+                        : '-';
+
+                    summary.push([
+                        person.name,
+                        person.title,
+                        vals.salary || 0,
+                        costItems,
+                        totalCosts,
+                        monthlyTotal,
+                        monthlyTotal * 12
+                    ]);
+                });
+
+                const ws = XLSX.utils.aoa_to_sheet(summary);
+                ws['!cols'] = [{ wch: 20 }, { wch: 35 }, { wch: 15 }, { wch: 40 }, { wch: 18 }, { wch: 15 }, { wch: 15 }];
+                XLSX.utils.book_append_sheet(wb, ws, 'Summary');
+
+                const detail = [
+                    ['Detailed Cost Breakdown'],
+                    [`Date: ${currentDate}`],
+                    [],
+                    ['Name', 'Position', 'Cost Type', 'Cost Name', 'Monthly Amount', 'Yearly Amount']
+                ];
+
+                Object.entries(financials).forEach(([id, vals]) => {
+                    const person = [...orgData.cso, ...orgData.directors, ...orgData.team].find(p => p.id === id);
+
+                    if (vals.salary > 0) {
+                        detail.push([
+                            person.name,
+                            person.title,
+                            'Salary',
+                            'Monthly Salary',
+                            vals.salary,
+                            vals.salary * 12
+                        ]);
+                    }
+
+                    vals.costs.forEach(cost => {
+                        if (cost.amount > 0) {
+                            detail.push([
+                                person.name,
+                                person.title,
+                                'Additional Cost',
+                                cost.name || 'Unnamed',
+                                cost.amount,
+                                cost.amount * 12
+                            ]);
+                        }
+                    });
+                });
+
+                const ws2 = XLSX.utils.aoa_to_sheet(detail);
+                ws2['!cols'] = [{ wch: 20 }, { wch: 35 }, { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 15 }];
+                XLSX.utils.book_append_sheet(wb, ws2, 'Detailed Breakdown');
+
+                XLSX.writeFile(wb, `Strategy_Costs_${currentDate}.xlsx`);
+            };
+
+            const filterNode = (node) => {
+                if (!showVacant && node.vacant) return false;
+                if (!searchTerm) return true;
+                const search = searchTerm.toLowerCase();
+                return node.name.toLowerCase().includes(search) ||
+                    node.title.toLowerCase().includes(search);
+            };
+
+            const renderNode = (person) => {
+                const showFinancials = person.type !== 'board' && person.type !== 'executive';
+                const pf = financials[person.id] || { salary: 0, costs: [] };
+
+                return (
+                    <div key={person.id} className={`node ${person.type}`}>
+                        <div className="node-name">{person.name}</div>
+                        <div className="node-title">{person.title}</div>
+
+                        {showFinancials && (
+                            <div className="node-financials">
+                                <div className="fin-row">
+                                    <span className="fin-label">Monthly Salary:</span>
+                                    <input
+                                        type="number"
+                                        className="fin-input"
+                                        value={pf.salary || ''}
+                                        onChange={(e) => updateSalary(person.id, e.target.value)}
+                                        placeholder="0"
+                                    />
+                                </div>
+
+                                {pf.costs.map((cost) => (
+                                    <div key={cost.id} className="cost-item">
+                                        <input
+                                            type="text"
+                                            className="cost-name"
+                                            value={cost.name}
+                                            onChange={(e) => updateCost(person.id, cost.id, 'name', e.target.value)}
+                                            placeholder="Cost name"
+                                        />
+                                        <div className="cost-row">
+                                            <input
+                                                type="number"
+                                                className="fin-input"
+                                                value={cost.amount || ''}
+                                                onChange={(e) => updateCost(person.id, cost.id, 'amount', e.target.value)}
+                                                placeholder="0"
+                                            />
+                                            <button
+                                                className="remove-btn"
+                                                onClick={() => removeCost(person.id, cost.id)}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                <button className="add-cost" onClick={() => addCost(person.id)}>
+                                    + Add Cost
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            return (
+                <div className="container">
+                    <div className="header">
+                        <h1>ORGANIZATIONAL CHART</h1>
+                        <p>Strategy & Digital Transformation</p>
+                        <div className="date">{currentDate}</div>
+                    </div>
+
+                    <div className="banner">
+                        <div className="banner-main">
+                            <div>
+                                <div className="banner-title">
+                                    Total Cost ({viewMode === 'monthly' ? 'Monthly' : 'Yearly'})
+                                </div>
+                                <div className="banner-amount">{formatCurrency(totals.total)}</div>
+                            </div>
+                            <div className="banner-controls">
+                                <div className="view-toggle">
+                                    <button
+                                        className={`view-btn ${viewMode === 'monthly' ? 'active' : ''}`}
+                                        onClick={() => setViewMode('monthly')}
+                                    >
+                                        Monthly
+                                    </button>
+                                    <button
+                                        className={`view-btn ${viewMode === 'yearly' ? 'active' : ''}`}
+                                        onClick={() => setViewMode('yearly')}
+                                    >
+                                        Yearly
+                                    </button>
+                                </div>
+                                <button className="export-btn" onClick={exportExcel}>
+                                    Export to Excel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="controls">
+                        <div className="search-box">
+                            <input
+                                type="text"
+                                placeholder="Search by name or position..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <div className="info-text">💡 All amounts are monthly</div>
+                        <button
+                            className="btn secondary"
+                            onClick={() => setShowVacant(!showVacant)}
+                        >
+                            {showVacant ? 'Hide' : 'Show'} Vacant
+                        </button>
+                        <button className="btn" onClick={() => setSearchTerm('')}>
+                            Clear Search
+                        </button>
+                        <button className="btn danger" onClick={resetFinancials}>
+                            Reset All
+                        </button>
+                    </div>
+
+                    <div className="org-chart">
+                        <div className="level">
+                            {orgData.board.filter(filterNode).map(renderNode)}
+                        </div>
+                        <div className="level">
+                            {orgData.executive.filter(filterNode).map(renderNode)}
+                        </div>
+                        <div className="level">
+                            {orgData.cso.filter(filterNode).map(renderNode)}
+                        </div>
+                        <div className="level">
+                            {orgData.directors.filter(filterNode).map(renderNode)}
+                        </div>
+                        <div className="level">
+                            {orgData.team.filter(filterNode).map(renderNode)}
+                        </div>
+                    </div>
+
+                    {showSaved && (
+                        <div className="save-indicator">✓ Auto-saved</div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
